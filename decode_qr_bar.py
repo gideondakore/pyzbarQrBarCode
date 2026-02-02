@@ -34,6 +34,8 @@ for img_name in image_files:
     # Decode with all three readers
     pyzbar_out = pyzbar_reader(image=img)
 
+    print(f"Decoding Results: {pyzbar_out}")
+    
     pyzbar_out = tuple(out.data.decode('utf-8') for out in pyzbar_out)
 
     print(f"Image: {img_name}")
