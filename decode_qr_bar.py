@@ -1,43 +1,61 @@
-
 from pyzbar.pyzbar import decode
 import os
 import cv2 
+import numpy as np
 
 # Get script directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 assets_dir = os.path.join(script_dir, "assets")
 
-# Initialize readers
-pyzbar_reader = decode
+image_files = 'schid.jpg'
+img_path = os.path.join(assets_dir, image_files)
 
-image_files = (
-    'card_national.jpg', 'card2.png', 'qr.png', 'qr2.png', 
-    'qr3.png', 'qr4.png', 'voters_blur.png', 'voters1.jpeg', 
-    'voters2.jpg', 'votters_id.jpg',
-    'amalilaptop.jpg', 'basitv.jpg', 'basitv2.jpg',
-    'bar.png', 'bar2.png'
-)
+if not os.path.exists(img_path):
+    print(f"File not found: {img_path}")
 
-for img_name in image_files:
-    img_path = os.path.join(assets_dir, img_name)
+img = cv2.imread(img_path)
+if img is None:
+    print(f"Failed to load: {img_path}")
+
+# Decode barcode
+pyzbar_results = decode(img)
+
+# Format output similar to MRZScanner
+result = {}
+if pyzbar_results:
+    polygon_points = []
+    barcode_texts = []
     
-    # Check if file exists
-    if not os.path.exists(img_path):
-        print(f"File not found: {img_path}")
-        continue
+    for res in pyzbar_results:
+        # Extract text
+        text = res.data.decode('utf-8') if res.data else ""
+        barcode_texts.append(text)
+        
+        # Extract polygon if available
+        if hasattr(res, 'polygon') and res.polygon:
+            polygon = np.array([[p.x, p.y] for p in res.polygon], dtype=np.float32)
+            if polygon.size > 0:
+                polygon_points = polygon
     
-    img = cv2.imread(img_path)
-    if img is None:
-        print(f"Failed to load: {img_path}")
-        continue
+    result = {
+        'barcode_polygon': polygon_points.tolist() if polygon_points.size > 0 else None,
+        'barcode_texts': barcode_texts,
+        'msg': f"Found {len(pyzbar_results)} barcode(s)"
+    }
+else:
+    result = {
+        'barcode_polygon': None,
+        'barcode_texts': [],
+        'msg': 'No barcode detected'
+    }
 
-    # Decode with all three readers
-    pyzbar_out = pyzbar_reader(image=img)
+# Create final output dictionary (similar to MRZScanner format)
+output = {
+    "success": len(pyzbar_results) > 0,
+    "barcode_polygon": result['barcode_polygon'],
+    "barcode_texts": result['barcode_texts'],
+    "msg": result['msg']
+}
 
-    print(f"Decoding Results: {pyzbar_out}")
-    
-    pyzbar_out = tuple(out.data.decode('utf-8') for out in pyzbar_out)
-
-    print(f"Image: {img_name}")
-    print(f"  pyzbar:  {pyzbar_out}")
-    print()
+print(f"Image: {image_files}")
+print(f"Output: {output}")
